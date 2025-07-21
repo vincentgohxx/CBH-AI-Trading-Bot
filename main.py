@@ -9,7 +9,8 @@ from PIL import Image
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- 【最终版】机器人专家人设 ---
+# --- 【最终修正版】机器人专家人设 ---
+
 # {equity} 是一个占位符，我们将在代码中动态替换它
 ULTIMATE_TRADING_PROMPT_ZH = (
     "你是一位顶级的量化交易策略师和私人基金经理，名为'CBH AI交易专家'。你的任务是为客户提供一份完整、可执行的交易指令单。"
@@ -27,16 +28,14 @@ ULTIMATE_TRADING_PROMPT_ZH = (
     "**5. 【个性化】保证金与爆仓风险 (Margin & Liquidation Risk):**\n"
     "   - **不要计算确切的爆仓价格**，因为你不知道用户的具体杠杆和保证金要求。\n"
     "   - 你必须**解释爆仓风险**：如果市场向不利方向移动，亏损过大导致保证金水平低于经纪商要求的最低水平，仓位将被强制平仓。\n"
-    "   - 你必须**强烈建议**：“请务必使用您交易平台自带的计算器，根据您的实际杠杆来精确计算保证金占用和预估爆仓点位。”\n\n"
+g   - 你必须**强烈建议**：“请务必使用您交易平台自带的计算器，根据您的实际杠杆来精确计算保证金占用和预估爆仓点位。”\n\n"
     "**6. 应急计划 (Contingency Plan):**\n"
     "   - **若上方突破:** ...\n"
     "   - **若下方跌破:** ...\n\n"
     "--- \n*免责声明：我是一个AI助手。所有内容不构成财务建议，所有交易均涉及风险。*"
 )
 
-# 为没有设置净值的用户准备的标准版Prompt
 STANDARD_TRADING_PROMPT_ZH = (
-    "你是一位顶级的量- ... (这里省略，内容为上一版本的详细Prompt) ... " # 为简洁起见，您可以将上个版本的Prompt复制到这里
     "你是一位顶级的量化交易策略师和图表分析专家，名为'CBH AI交易专家'。你的分析风格精准、量化、冷静，并且专注于提供可执行的交易计划。"
     "你的回答必须严格遵循以下格式，使用清晰的标题和要点："
     "\n\n**1. 市场情绪 (Market Sentiment):** 一句话总结你对当前市场是看涨、看跌还是盘整震荡。"
@@ -52,13 +51,25 @@ STANDARD_TRADING_PROMPT_ZH = (
     "\n\n--- \n*免责声明：我是一个AI助手。所有内容不构成财务建议，所有交易均涉及风险。*"
 )
 
+# 【修复】在这里添加了之前遗漏的变量定义
+SIMPLE_CHAT_PROMPT_ZH = (
+    "你是一位名为'CBH AI交易专家'的资深AI助手，精通外汇交易领域。你总是以专业、自信且乐于助人的口吻，"
+    "回答用户关于交易的通用问题。"
+    "在你的每一条回复的结尾，都必须另起一行附上以下免责声明："
+    "--- \n*免责声明：我是一个AI助手。所有内容不构成财务建议，所有交易均涉及风险。*"
+)
+
 AI_MODEL_NAME = 'gemini-1.5-flash'
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel(AI_MODEL_NAME)
+# 确保在程序开始时就配置好API密钥
+try:
+    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+    model = genai.GenerativeModel(AI_MODEL_NAME)
+except Exception as e:
+    logger.critical(f"Google AI 初始化失败: {e}")
+    model = None
 
 # --- 新增功能：用户数据管理 ---
 def set_equity(update: Update, context: CallbackContext) -> None:
-    """让用户设置他们的账户净值。"""
     try:
         equity_value = float(context.args[0])
         context.user_data['equity'] = equity_value
@@ -67,7 +78,6 @@ def set_equity(update: Update, context: CallbackContext) -> None:
         update.message.reply_text("❌ 使用方法错误！\n请这样使用: /set_equity <金额>\n例如: /set_equity 5000")
 
 def my_equity(update: Update, context: CallbackContext) -> None:
-    """显示用户已设置的账户净值。"""
     if 'equity' in context.user_data:
         equity_value = context.user_data['equity']
         update.message.reply_text(f"您当前设置的账户净值为: ${equity_value:,.2f}")
@@ -76,6 +86,8 @@ def my_equity(update: Update, context: CallbackContext) -> None:
 
 # --- AI核心功能 ---
 def get_ai_response(prompt, image=None):
+    if not model:
+        return "抱歉，AI服务因配置问题未能启动，请联系管理员查看日志。"
     try:
         content = [prompt, image] if image else [prompt]
         response = model.generate_content(content)
@@ -101,19 +113,23 @@ def handle_photo(update: Update, context: CallbackContext) -> None:
     photo_file = update.message.photo[-1].get_file()
     temp_photo_path = f"{photo_file.file_id}.jpg"
     photo_file.download(temp_photo_path)
-    img = Image.open(temp_photo_path)
+    
+    try:
+        img = Image.open(temp_photo_path)
+    except Exception as e:
+        logger.error(f"无法打开图片: {e}")
+        reply.edit_text("❌ 抱歉，无法处理您发送的图片文件。")
+        os.remove(temp_photo_path)
+        return
 
     if 'equity' in context.user_data:
         equity = context.user_data['equity']
-        # 使用包含净值占位符的终极版Prompt
         prompt = ULTIMATE_TRADING_PROMPT_ZH.format(equity=f"{equity:,.2f}")
     else:
-        # 使用标准版Prompt
         prompt = STANDARD_TRADING_PROMPT_ZH
     
     analysis_result = get_ai_response(prompt, image=img)
     
-    # 如果用户没设置净值，在结果后追加提示
     if 'equity' not in context.user_data:
         analysis_result += "\n\n**💡 提示:** 您尚未设置账户净值。使用 `/set_equity <金额>` 来获取包含仓位管理和风险计算的个性化建议！"
 
@@ -123,20 +139,19 @@ def handle_photo(update: Update, context: CallbackContext) -> None:
 def handle_text(update: Update, context: CallbackContext) -> None:
     user_message = update.message.text
     reply = update.message.reply_text("💬 正在思考中...", quote=True)
-    prompt = f"{SIMPLE_CHAT_PROMPT_ZH}\n\n用户的问题是：'{user_message}'" # 您需要定义SIMPLE_CHAT_PROMPT_ZH
+    prompt = f"{SIMPLE_CHAT_PROMPT_ZH}\n\n用户的问题是：'{user_message}'"
     ai_response = get_ai_response(prompt)
     reply.edit_text(ai_response)
 
 def main() -> None:
     bot_token = os.getenv("BOT_TOKEN")
     if not bot_token:
-        logger.critical("致命错误: BOT_TOKEN 环境变量未设置！")
+        logger.critical("致命错误: 环境变量 BOT_TOKEN 未设置！")
         return
 
     updater = Updater(bot_token, use_context=True)
     dispatcher = updater.dispatcher
     
-    # 添加新的指令处理器
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("set_equity", set_equity))
     dispatcher.add_handler(CommandHandler("my_equity", my_equity))
@@ -145,7 +160,7 @@ def main() -> None:
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
     updater.start_polling()
-    logger.info("CBH AI 交易专家机器人已成功启动！(版本：个性化仓位管理版)")
+    logger.info("CBH AI 交易专家机器人已成功启动！(版本：最终修正版)")
     updater.idle()
 
 if __name__ == '__main__':
