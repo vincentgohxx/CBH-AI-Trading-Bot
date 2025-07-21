@@ -1,2 +1,3 @@
-# CBH-AI-Trading-Bot
-Telegram trading assistant for gold trend and price analysis
+# V-G Ai Trading Bot
+
+A Telegram bot for basic command testing and trading prompt response.
