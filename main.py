@@ -1,14 +1,9 @@
 import os
-import mimetypes
 from telegram.ext import Updater, CommandHandler, CallbackContext
-from telegram import Update, InputFile
+from telegram import Update
 
 def start(update: Update, context: CallbackContext):
     update.message.reply_text("Welcome to V-G Ai Trading Bot!")
-
-def is_image(file_path):
-    mime_type, _ = mimetypes.guess_type(file_path)
-    return mime_type and mime_type.startswith("image/")
 
 def main():
     token = os.getenv("BOT_TOKEN")
