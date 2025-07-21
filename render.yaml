@@ -1,6 +1,10 @@
 services:
   - type: web
     name: CBH-AI-Trading-Bot
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main.py"
+    envVars:
+      - key: BOT_TOKEN
+        sync: true
+    pythonVersion: 3.10  # ✅ 强制用这个版本
