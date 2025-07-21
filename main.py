@@ -4,7 +4,7 @@ import signal  # 导入信号处理模块
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 import requests
-import google.generai as genai
+import google.generativeai as genai  # 【修复】修正了这里的拼写错误
 from PIL import Image
 from functools import wraps
 
