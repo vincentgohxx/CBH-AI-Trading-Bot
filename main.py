@@ -8,12 +8,13 @@ import requests
 import google.generativeai as genai
 from PIL import Image
 from apscheduler.schedulers.background import BackgroundScheduler
-# 白名单不再需要，所以移除了 from functools import wraps
+# 移除了不再需要的 wraps
+# from functools import wraps
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- 【最终公开版】机器人专家人设：精英交易信号分析师 ---
+# --- 【最终公开版】机器人专家人设 ---
 ULTIMATE_ANALYST_PROMPT_ZH = (
     "你是一位顶级的技术分析师，名为'CBH AI交易专家'，专长是提供简洁、结构化、可执行的交易信号。\n\n"
     "你的任务流程分为两步：\n"
@@ -74,11 +75,11 @@ def check_prices(context: CallbackContext):
         text = (f"**🚨 价格警报: 黄金 (XAUUSD) 🚨**\n\n"
                 f"您设置的条件 **(价格 {condition} {target_price})** 已满足！\n\n"
                 f"**当前价格: ${current_price:,.2f}**")
-        context.bot.send_message(chat_id=chat_id, text=text, parse_mode='MarkdownV2')
+        # 【修复】将 parse_mode 从 'MarkdownV2' 改为 'Markdown'
+        context.bot.send_message(chat_id=chat_id, text=text, parse_mode='Markdown')
         job.schedule_removal()
 
 def watch(update: Update, context: CallbackContext) -> None:
-    # 移除了白名单装饰器 @restricted
     chat_id = update.effective_chat.id
     try:
         condition = context.args[0]
@@ -86,7 +87,7 @@ def watch(update: Update, context: CallbackContext) -> None:
         if condition not in ['>', '<']: raise ValueError()
         job_context = {'chat_id': chat_id, 'target_price': target_price, 'condition': condition}
         context.job_queue.run_repeating(check_prices, interval=300, first=0, context=job_context, name=f"watch_{chat_id}_{condition}_{target_price}")
-        update.message.reply_text(f"✅ **监控已设置**\n当黄金价格 **{condition} ${target_price:,.2f}** 时，我会提醒您。")
+        update.message.reply_text(f"✅ **监控已设置**\n当黄金价格 **{condition} ${target_price:,.2f}** 时，我会提醒您。", parse_mode='Markdown')
     except (IndexError, ValueError):
         update.message.reply_text("❌ **指令格式错误！**\n请这样使用:\n`/watch > 2380`\n`/watch < 2300`")
 
@@ -104,27 +105,24 @@ def analyze_chart_as_analyst(image_path: str) -> str:
         return f"抱歉，AI分析师当前不可用。错误: {e}"
 
 def handle_photo(update: Update, context: CallbackContext) -> None:
-    # 移除了白名单装饰器 @restricted
     reply = update.message.reply_text("收到图表，正在为您生成一份专业的交易信号，请稍候...", quote=True)
     photo_file = update.message.photo[-1].get_file()
     temp_photo_path = f"{photo_file.file_id}.jpg"
     photo_file.download(temp_photo_path)
     analysis_result = analyze_chart_as_analyst(temp_photo_path)
     
-    # 我们尝试用MarkdownV2，如果失败，就用纯文本发送
     try:
-        reply.edit_text(analysis_result, parse_mode='MarkdownV2')
+        reply.edit_text(analysis_result, parse_mode='Markdown')
     except Exception as e:
-        logger.warning(f"MarkdownV2发送失败: {e}。将尝试用纯文本发送。")
-        reply.edit_text(analysis_result) # 失败后回退到纯文本模式
+        logger.warning(f"Markdown发送失败: {e}。将尝试用纯文本发送。")
+        reply.edit_text(analysis_result)
         
     os.remove(temp_photo_path)
 
 # --- 其他指令 ---
 def start(update: Update, context: CallbackContext) -> None:
-    # 移除了白名单的if/else逻辑，对所有用户都显示欢迎信息
     update.message.reply_text(
-        "欢迎使用 CBH AI 精英分析师 & 哨兵 (v7.1 - 公开版)！\n\n"
+        "欢迎使用 CBH AI 精英分析师 & 哨兵 (v7.2 - 公开稳定版)！\n\n"
         "我现在是您的私人交易信号分析师：\n"
         "1️⃣ **AI信号分析**: 发送一张带清晰标记的图表 (如GOLD H4)，我将为您提供一份结构化的交易信号。\n"
         "2️⃣ **价格哨兵**: 使用 `/watch <或> <价格>` 设置价格提醒。\n   例如: `/watch > 2380`\n\n"
@@ -146,7 +144,7 @@ def main() -> None:
     dispatcher.add_handler(MessageHandler(Filters.photo, handle_photo))
 
     updater.start_polling()
-    logger.info("CBH AI 精英分析师 & 哨兵机器人已成功启动！(公开版)")
+    logger.info("CBH AI 精英分析师 & 哨兵机器人已成功启动！(公开稳定版)")
     updater.idle()
 
 if __name__ == '__main__':
