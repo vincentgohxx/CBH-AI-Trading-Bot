@@ -9,7 +9,7 @@ from PIL import Image
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- 【最终精校版】机器人专家人设 ---
+# --- 【最终无错版】机器人专家人设 ---
 
 # {equity} 是一个占位符，我们将在代码中动态替换它
 ULTIMATE_TRADING_PROMPT_ZH = (
@@ -101,7 +101,7 @@ def get_ai_response(prompt, image=None):
 # --- Telegram机器人处理器 ---
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
-        "欢迎使用 CBH AI 交易专家 (v2.1)！\n\n"
+        "欢迎使用 CBH AI 交易专家 (v2.2)！\n\n"
         "我现在拥有了记忆和计算能力！\n"
         "1️⃣ **设置净值**: 使用 `/set_equity <金额>` (例如 `/set_equity 5000`) 来告诉我您的本金。\n"
         "2️⃣ **发送图表**: 我将为您提供包含**手数建议**和**爆仓风险分析**的完整交易计划。\n"
@@ -143,7 +143,8 @@ def handle_text(update: Update, context: CallbackContext) -> None:
     reply = update.message.reply_text("💬 正在思考中...", quote=True)
     prompt = f"{SIMPLE_CHAT_PROMPT_ZH}\n\n用户的问题是：'{user_message}'"
     ai_response = get_ai_response(prompt)
-    reply.edit_text(ai_。response)
+    # 【修复】修正了这里的笔误
+    reply.edit_text(ai_response)
 
 def main() -> None:
     bot_token = os.getenv("BOT_TOKEN")
@@ -162,7 +163,7 @@ def main() -> None:
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
     updater.start_polling()
-    logger.info("CBH AI 交易专家机器人已成功启动！(版本: 最终精校版)")
+    logger.info("CBH AI 交易专家机器人已成功启动！(版本: 最终无错版)")
     updater.idle()
 
 if __name__ == '__main__':
