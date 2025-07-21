@@ -23,7 +23,6 @@ EXPERT_PERSONA_PROMPT_ZH = (
 )
 
 # --- 统一使用最新的AI模型 ---
-# gemini-1.5-flash 是一个强大的多模态模型，可以同时处理文本和图片
 AI_MODEL_NAME = 'gemini-1.5-flash'
 
 
@@ -38,7 +37,6 @@ def analyze_chart_with_gemini(image_path: str) -> str:
 
     try:
         genai.configure(api_key=api_key)
-        # 使用更新后的模型名称
         model = genai.GenerativeModel(AI_MODEL_NAME)
         img = Image.open(image_path)
         
@@ -55,7 +53,6 @@ def analyze_chart_with_gemini(image_path: str) -> str:
 
     except Exception as e:
         logger.error(f"调用Gemini API时出错: {e}")
-        # 返回更详细的错误给用户，方便调试
         return f"抱歉，AI分析师当前不可用。错误: {e}"
 
 
@@ -67,7 +64,6 @@ def chat_with_gemini(user_text: str) -> str:
 
     try:
         genai.configure(api_key=api_key)
-        # 同样使用更新后的模型名称
         model = genai.GenerativeModel(AI_MODEL_NAME)
         
         full_prompt = f"{EXPERT_PERSONA_PROMPT_ZH}\n\n用户的问题是：'{user_text}'"
@@ -82,7 +78,7 @@ def chat_with_gemini(user_text: str) -> str:
         return f"抱歉，我的AI大脑暂时无法连接。错误: {e}"
 
 
-# --- Telegram机器人处理器 (无需改动) ---
+# --- Telegram机器人处理器 ---
 
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
@@ -99,14 +95,16 @@ def handle_photo(update: Update, context: CallbackContext) -> None:
     temp_photo_path = f"{photo_file.file_id}.jpg"
     photo_file.download(temp_photo_path)
     analysis_result = analyze_chart_with_gemini(temp_photo_path)
-    reply.edit_text(analysis_result, parse_mode='Markdown')
+    # 【修复】移除了 parse_mode='Markdown' 来避免格式错误
+    reply.edit_text(analysis_result)
     os.remove(temp_photo_path)
 
 def handle_text(update: Update, context: CallbackContext) -> None:
     user_message = update.message.text
     reply = update.message.reply_text("💬 正在思考中...", quote=True)
     ai_response = chat_with_gemini(user_message)
-    reply.edit_text(ai_response, parse_mode='Markdown')
+    # 【修复】移除了 parse_mode='Markdown' 来避免格式错误
+    reply.edit_text(ai_response)
 
 def main() -> None:
     bot_token = os.getenv("BOT_TOKEN")
