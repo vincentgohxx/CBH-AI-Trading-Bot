@@ -1,4 +1,3 @@
-
 import os
 from telegram.ext import Updater, CommandHandler, CallbackContext
 from telegram import Update
@@ -12,8 +11,9 @@ def main():
         print("Error: BOT_TOKEN not found in environment variables.")
         return
 
-    updater = Updater(token)
+    updater = Updater(token, use_context=True)
     dispatcher = updater.dispatcher
+
     dispatcher.add_handler(CommandHandler("start", start))
 
     updater.start_polling()
