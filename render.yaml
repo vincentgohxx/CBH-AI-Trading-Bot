@@ -7,4 +7,6 @@ services:
     envVars:
       - key: BOT_TOKEN
         sync: true
+      - key: CURRENCY_API_KEY
+        sync: true
     pythonVersion: 3.10  # ✅ 强制用这个版本
