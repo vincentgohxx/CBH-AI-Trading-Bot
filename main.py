@@ -1,9 +1,10 @@
 import os
 import logging
+import signal  # 导入信号处理模块
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 import requests
-import google.generativeai as genai
+import google.generai as genai
 from PIL import Image
 from functools import wraps
 
@@ -35,17 +36,25 @@ MVP_ANALYST_PROMPT_ZH = (
 AI_MODEL_NAME = 'gemini-1.5-flash'
 model = None
 try:
-    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-    model = genai.GenerativeModel(AI_MODEL_NAME)
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if api_key:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(AI_MODEL_NAME)
+    else:
+        logger.critical("环境变量 GOOGLE_API_KEY 未设置！")
 except Exception as e:
     logger.critical(f"Google AI 初始化失败: {e}")
 
 FMP_API_KEY = os.getenv("FMP_API_KEY")
 
-# --- 其他所有函数 (get_price, analyze_chart, start, handle_photo, price_command, main) ---
-# ... (这些函数的内部代码与上一版完全相同，仅需在analyze_chart中确认使用了新的Prompt) ...
+# 【重要】将 updater 设为全局变量，以便在 shutdown 函数中访问
+updater = None
+
+# --- 函数定义 ---
+
 def get_price(symbol: str) -> dict:
-    if not FMP_API_KEY: return {"error": "行情服务未配置。"}
+    if not FMP_API_KEY:
+        return {"error": "行情服务未配置。"}
     formatted_symbol = symbol.upper()
     if len(symbol) == 6 and symbol not in ["GOLD", "SILVER"]:
         formatted_symbol = f"{symbol[:3]}/{symbol[3:]}"
@@ -55,17 +64,22 @@ def get_price(symbol: str) -> dict:
         response.raise_for_status()
         data = response.json()
         if data:
-            return { "name": data[0].get("name"), "price": data[0].get("price"), "change": data[0].get("change"), "changesPercentage": data[0].get("changesPercentage") }
+            return {
+                "name": data[0].get("name", symbol),
+                "price": data[0].get("price"),
+                "change": data[0].get("change", 0),
+                "changesPercentage": data[0].get("changesPercentage", 0)
+            }
         return {"error": f"找不到交易对 {symbol} 的数据。"}
     except requests.RequestException as e:
         logger.error(f"获取 {symbol} 价格时出错: {e}")
         return {"error": "获取行情失败，请稍后再试。"}
 
 def analyze_chart(image_path: str) -> str:
-    if not model: return "抱歉，AI服务未启动。"
+    if not model:
+        return "抱歉，AI服务未启动。"
     try:
         img = Image.open(image_path)
-        # 【重要】确保使用了最新的、带有交易纪律的Prompt
         prompt = f"{MVP_ANALYST_PROMPT_ZH}\n\n请严格按照以上格式和纪律，分析这张图表。"
         response = model.generate_content([prompt, img])
         return response.text.replace("```", "").strip()
@@ -75,7 +89,7 @@ def analyze_chart(image_path: str) -> str:
 
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
-        "欢迎使用 CBH AI 交易助手 (MVP v1.1 - 纪律版)！\n\n"
+        "欢迎使用 CBH AI 交易助手 (v1.2 - 稳定版)！\n\n"
         "**核心功能:**\n"
         "1️⃣ **AI图表分析**: 发送任何交易图表，获取符合**1:1.5+盈亏比**的专业信号。\n"
         "2️⃣ **实时行情**: 使用 `/price <交易对>` 查询最新价格。\n\n"
@@ -111,7 +125,17 @@ def price_command(update: Update, context: CallbackContext) -> None:
     )
     update.message.reply_text(response_text, parse_mode='Markdown')
 
+def shutdown(signum, frame):
+    """一个处理关机信号的函数，用于实现优雅退场。"""
+    logger.info("收到关机信号... 正在优雅地关闭机器人...")
+    if updater:
+        updater.stop()
+        updater.is_idle = False
+    logger.info("机器人已成功关闭。")
+
 def main() -> None:
+    global updater
+
     bot_token = os.getenv("BOT_TOKEN")
     if not bot_token:
         logger.critical("致命错误: 环境变量 BOT_TOKEN 未设置！")
@@ -122,11 +146,14 @@ def main() -> None:
     
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("price", price_command))
-    
     dispatcher.add_handler(MessageHandler(Filters.photo, handle_photo))
+    
+    # 注册信号处理器，实现优雅退场
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
 
     updater.start_polling()
-    logger.info("CBH AI 交易助手 (MVP v1.1 - 纪律版) 已成功启动！")
+    logger.info("CBH AI 交易助手 已成功启动！")
     updater.idle()
 
 if __name__ == '__main__':
