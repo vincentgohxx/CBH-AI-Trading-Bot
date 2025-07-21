@@ -3,7 +3,7 @@ from telegram.ext import Updater, CommandHandler, CallbackContext
 from telegram import Update
 
 def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Welcome to V-G Ai Trading Bot!")
+    update.message.reply_text("Welcome to CBH AI Trading Bot!")
 
 def main():
     token = os.getenv("BOT_TOKEN")
