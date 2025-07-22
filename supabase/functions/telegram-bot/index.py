@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 # 初始化 FastAPI app，这是 Gunicorn 需要的
 app = FastAPI()
 
-bot_token = os.getenv("BOT_TOKEN")
+bot_token = os.getenv("8189696717:AAEHt1aEPosYYsBaxPxAfaKaNwtA19hu2xs")
 if not bot_token:
     raise ValueError("环境变量 BOT_TOKEN 未设置！")
 
