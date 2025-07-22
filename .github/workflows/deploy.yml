@@ -9,16 +9,20 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
+      # 【核心升级】我们不再使用 supabase/setup-cli@v1
+      # 而是使用官方推荐的、更稳定的安装方式
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://github.com/supabase/cli/releases/download/v1.167.4/supabase_1.167.4_linux_amd64.deb -o supabase.deb
+          sudo dpkg -i supabase.deb
+      
+      # 【指令修正】使用最稳定、最完整的项目级部署指令
       - name: Deploy Supabase Project
-        run: supabase deploy
+        run: supabase deploy --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
