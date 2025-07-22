@@ -1,8 +1,0 @@
-# supabase/config.toml
-
-# 这是项目的唯一标识，必须与您Supabase项目设置里的 "Project ID" 完全一致。
-project_id = "wfsuazmffjdzzwuylknq"
-
-# 我们只需要告诉Supabase这个函数存在即可
-# 它会自动去寻找Dockerfile
-[functions.telegram-bot]
