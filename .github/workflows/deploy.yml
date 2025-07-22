@@ -14,13 +14,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 【核心修复】在 docker login 时，使用 SUPABASE_ACCESS_TOKEN 作为密码
       - name: Log in to Supabase Docker Registry
-        run: echo ${{ secrets.SUPABASE_DB_PASSWORD }} | docker login ${{ secrets.SUPABASE_PROJECT_ID }}.dkr.ecr.ap-southeast-1.amazonaws.com -u supabase-owner --password-stdin
+        run: echo ${{ secrets.SUPABASE_ACCESS_TOKEN }} | docker login ${{ secrets.SUPABASE_PROJECT_ID }}.dkr.ecr.ap-southeast-1.amazonaws.com -u supabase-owner --password-stdin
         env:
-          # 【重要】请确保您的项目区域是 ap-southeast-1 (Singapore)
-          # 如果不是，请在这里修改为您的项目区域代码，例如 us-east-1
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Build and Push Docker Image
         run: |
