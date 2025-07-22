@@ -1,0 +1,9 @@
+# supabase/config.toml
+project_id = "wfsuazmffjdzzwuylknq"
+
+[api]
+port = 8000
+
+[functions.telegram-bot]
+# 这行代码强制告诉Supabase，这个函数必须使用Docker！
+use_docker = true
