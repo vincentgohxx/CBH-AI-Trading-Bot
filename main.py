@@ -4,9 +4,12 @@ import signal  # 导入信号处理模块
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 import requests
-import google.generativeai as genai
+from openai import OpenAI # 导入OpenAI的库
+import base64            # 导入用于图片编码的工具
 from PIL import Image
 from functools import wraps
+
+
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,18 +35,18 @@ MVP_ANALYST_PROMPT_ZH = (
     "--- \n*免责声明: 我是一个AI助手。所有内容不构成财务建议，所有交易均涉及风险。*"
 )
 
-# --- 核心配置 ---
-AI_MODEL_NAME = 'gemini-1.5-flash'
-model = None
+# --- 核心配置 (OpenAI) ---
+AI_MODEL_NAME = 'gpt-4o'
 try:
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
     if api_key:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(AI_MODEL_NAME)
+        client = OpenAI(api_key=api_key)
     else:
-        logger.critical("环境变量 GOOGLE_API_KEY 未设置！")
+        logger.critical("环境变量 OPENAI_API_KEY 未设置！")
+        client = None
 except Exception as e:
-    logger.critical(f"Google AI 初始化失败: {e}")
+    logger.critical(f"OpenAI 客户端初始化失败: {e}")
+    client = None
 
 FMP_API_KEY = os.getenv("FMP_API_KEY")
 
@@ -76,23 +79,52 @@ def get_price(symbol: str) -> dict:
         return {"error": "获取行情失败，请稍后再试。"}
 
 def analyze_chart(image_path: str) -> str:
-    if not model:
-        return "抱歉，AI服务未启动。"
+    if not client:
+        return "抱歉，AI服务因配置问题未能启动。"
+
     try:
-        img = Image.open(image_path)
-        prompt = f"{MVP_ANALYST_PROMPT_ZH}\n\n请严格按照以上格式和纪律，分析这张图表。"
-        response = model.generate_content([prompt, img])
-        return response.text.replace("```", "").strip()
+        # 1. 读取图片文件
+        with open(image_path, "rb") as image_file:
+            # 2. 将图片编码为Base64格式，这是OpenAI API要求的
+            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+        # 3. 调用OpenAI的gpt-4o模型进行分析
+        logger.info(f"正在使用模型 {AI_MODEL_NAME} 分析图表...")
+        response = client.chat.completions.create(
+            model=AI_MODEL_NAME,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": MVP_ANALYST_PROMPT_ZH # 我们继续使用那个强大的指令
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=500 # 限制一下回复长度
+        )
+        
+        analysis_result = response.choices[0].message.content
+        return analysis_result.replace("```", "").strip()
+
     except Exception as e:
-        logger.error(f"调用Gemini API时出错: {e}")
+        logger.error(f"调用OpenAI API时出错: {e}")
         return f"抱歉，AI分析师当前不可用。错误: {e}"
 
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
-        "欢迎使用 CBH AI 交易助手 (v1.2 - 稳定版)！\n\n"
+        "欢迎使用 CBH AI 交易助手 (v2.0 - GOD)！\n\n"
         "**核心功能:**\n"
-        "1️⃣ **AI图表分析**: 发送任何交易图表，获取符合**1:1.5+盈亏比**的专业信号。\n"
-        "2️⃣ **实时行情**: 使用 `/price <交易对>` 查询最新价格。\n\n"
+        "1️⃣ **AI图表分析**\n"
+        "2️⃣ **实时行情**: 使用 `/price <交易对>` 查询。\n\n"
         "我们开始吧！"
     )
 
