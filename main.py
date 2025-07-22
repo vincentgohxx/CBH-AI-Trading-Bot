@@ -11,7 +11,7 @@ from functools import wraps
 from datetime import datetime, date
 
 # 从 prompts.py 文件中导入AI指令
-from prompts import PROMPT_ANALYST_V1
+from prompts import PROMPT_ANALYST_V2
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -128,15 +128,28 @@ def button_callback_handler(update: Update, context: CallbackContext) -> None:
 def analyze_command(update: Update, context: CallbackContext) -> None:
     update.message.reply_text("Please upload a chart image (JPG/PNG) now for analysis.")
 
-def analyze_chart(image_path: str) -> str:
+def analyze_chart(image_path: str, lang_code: str) -> str:
     if not client: return "抱歉，AI服务因配置问题未能启动。"
+    
+    # 根据用户的语言偏好，选择正确的Prompt
+    prompt_text = PROMPT_ANALYST_V2.get(lang_code, PROMPT_ANALYST_V2['en']) # 默认用英文
+
     try:
         with open(image_path, "rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+
         logger.info(f"正在使用模型 {AI_MODEL_NAME} 分析图表...")
         response = client.chat.completions.create(
             model=AI_MODEL_NAME,
-            messages=[{"role": "user","content": [{"type": "text","text": PROMPT_ANALYST_V1['cn']},{"type": "image_url","image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}]}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt_text},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                    ]
+                }
+            ],
             max_tokens=500
         )
         analysis_result = response.choices[0].message.content
@@ -150,7 +163,15 @@ def handle_photo(update: Update, context: CallbackContext) -> None:
     photo_file = update.message.photo[-1].get_file()
     temp_photo_path = f"{photo_file.file_id}.jpg"
     photo_file.download(temp_photo_path)
-    analysis_result = analyze_chart(temp_photo_path)
+    
+    # 获取用户的语言设置
+    lang = context.user_data.get('lang', 'both')
+    # 如果是双语，我们优先用中文Prompt，因为它的格式要求更符合您的期望
+    prompt_lang = 'cn' if lang in ['cn', 'both'] else 'en'
+
+    # 将语言偏好传递给分析函数
+    analysis_result = analyze_chart(temp_photo_path, prompt_lang)
+    
     try:
         reply.edit_text(analysis_result, parse_mode='Markdown')
     except Exception:
