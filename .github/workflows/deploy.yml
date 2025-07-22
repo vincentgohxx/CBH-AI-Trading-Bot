@@ -14,18 +14,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 使用最稳定、最官方的安装脚本
+      # 【核心修复】我们不再使用 /latest/ 链接
+      # 而是直接下载一个我们确切知道存在的、稳定的版本 (例如 v1.167.4)
       - name: Install Supabase CLI
         run: |
-          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.deb -o supabase.deb
+          curl -fsSL https://github.com/supabase/cli/releases/download/v1.167.4/supabase_1.167.4_linux_amd64.deb -o supabase.deb
           sudo dpkg -i supabase.deb
       
       # 使用终极的、项目级的“总指挥官”指令
       - name: Deploy Supabase Project
         run: supabase deploy
         env:
-          # 【重要】我们把所有需要的密钥都放在这里，确保指令能获取到
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          # 【重要】Project ID 必须通过这个环境变量传递给 "supabase deploy"
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
