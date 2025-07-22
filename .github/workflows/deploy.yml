@@ -17,8 +17,9 @@ jobs:
         with:
           version: latest
 
+
       - name: Deploy all Functions
-        run: supabase deploy --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
