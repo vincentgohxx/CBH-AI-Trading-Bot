@@ -1,0 +1,27 @@
+# .github/workflows/deploy.yml
+
+name: Deploy to Supabase
+
+on:
+  push:
+    branches:
+      - main # 当有代码推送到 main 分支时触发
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy Supabase Function
+        run: |
+          supabase functions deploy telegram-bot --project-id ${{ secrets.SUPABASE_PROJECT_ID }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
