@@ -23,7 +23,7 @@ jobs:
       
       # 使用终极的、项目级的“总指挥官”指令
       - name: Deploy Supabase Project
-        run: supabase deploy
+        run: supabase functions deploy
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
